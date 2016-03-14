@@ -1,3 +1,3 @@
 # EjercicioMarchena
 Ejercicio Tecnico
-Lunes 14
+--Los metodos para este ejercicio son creados en diferentes clases.
