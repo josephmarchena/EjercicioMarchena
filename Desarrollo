@@ -1,0 +1,256 @@
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Configuration;
+using System.Diagnostics;
+using System.Data;
+using System.Data.SqlClient;
+using System.IO;
+
+
+namespace JobLogger
+{
+     public class Program
+    {
+        /*
+         
+         *public  class BaseDatos
+        {
+        SqlConnection _conexion = null;
+        SqlCommand _comando;
+         
+
+        public string Cadenaconexion;
+        
+
+        public BaseDatos()
+        {
+            configurar();
+        }
+        public void configurar()
+        {
+            this.Cadenaconexion = ConfigurationManager.AppSettings.Get("Conexion");
+          
+        }
+         * 
+          public SqlConnection conectar()
+            {
+           _conexion = new SqlConnection(Cadenaconexion);
+           if (_conexion.State.Equals(ConnectionState.Closed))
+           {
+               _conexion.Open();
+           }
+           return _conexion;
+            }
+         * 
+         * public void CreateCommand(string NomProcedure)
+       {
+           _comando = new SqlCommand(NomProcedure, _conexion);
+           //_comando.CommandText = NomProcedure;
+           //_comando.Connection = _conexion;
+           _comando.CommandType = CommandType.StoredProcedure;
+           if (_transaccion != null)
+           {
+               _comando.Transaction = _transaccion;
+           }
+       }
+       
+       public void Parameters(string Variable, string valor)
+       {
+           _comando.Parameters.AddWithValue("@" + Variable, valor);
+       }
+         * 
+         * 
+         *  
+         * 
+        public void Disconnect()
+       {
+           if (_conexion.State.Equals(ConnectionState.Open))
+           {
+               _conexion.Close();
+           }
+       }
+         * 
+         * 
+        public void ExecuteCommandNonQuery()
+       {
+           _comando.ExecuteNonQuery();
+           
+       }
+         * 
+         */
+         
+         
+         /* //AppConfig
+         
+         <?xml version="1.0" encoding="utf-8" ?>
+
+        <configuration>
+
+          <connectionStrings>
+            <add name="Conexion" connectionString="server=.;database=LOG;uid=sa;pwd=sql" providerName="System.Data.SqlClient"/>
+            <add name="ApplicationServices" connectionString="data source=.\SQLEXPRESS;Integrated Security=SSPI;AttachDBFilename=|DataDirectory|\aspnetdb.mdf;User Instance=true" providerName="System.Data.SqlClient"/>
+          </connectionStrings>
+          <appSettings>
+  
+          <add key="Conexion" value="server=.;database=LOG;uid=sa;pwd=sql" />
+          <add key="LogFileDirectory" value="C:\Logs\" />
+          <add key="SaveLogFileTo" value="MyLogFile.txt" />
+  
+           </appSettings>
+
+        </configuration>
+         */
+        //private static int var = 4;
+          private static int t;
+          private static int CodeType;
+          private static string l = "";
+          private static bool _logToFile;
+          private static bool _logToConsole; 
+          private static bool _logMessage;
+
+          private static bool _logWarning; 
+          private static bool _logError;
+          private static bool LogToDatabase; 
+          
+
+          
+          BaseDatos bd = new BaseDatos();
+          private static string alert = "info";
+          private static string ruta = ConfigurationManager.AppSettings["LogFileDirectory"] + "LogFile" + Date() + ".txt"; 
+          
+
+          public Program(bool logToFile, bool logToConsole, bool logToDatabase, bool logMessage, bool logWarning, bool logError)     
+          {    
+              _logError = logError;          
+              _logMessage = logMessage;          
+              _logWarning = logWarning;          
+              LogToDatabase = logToDatabase;          
+              _logToFile = logToFile;          
+              _logToConsole = logToConsole;      
+          
+          }
+         public void LogMessage(string message, bool message1, bool warning, bool  error)    
+         {
+             CleanMessage(message);       
+             
+             if (message == null || message.Length == 0){ return;}
+
+             else
+             {
+
+                 if(!_logToConsole && !_logToFile && !LogToDatabase)
+                 {
+                    throw new ConfigurationErrorsException("Invalid configuration");
+                 
+                 } else {
+
+                     if ((!_logError && !_logMessage && !_logWarning) || (!message1 && !warning && !error))
+                     {
+                         throw new InvalidOperationException("Error or Warning or Message must be specified"); 
+                     }
+                     else
+                     {
+                         
+                         Info(alert);
+
+                         try
+                         {
+                             bd.conectar();
+                             bd.CreateCommand("sp_InsertLog");
+                             bd.Parameters("message" ,message);
+                             bd.Parameters("type" ,alert);
+                             bd.ExecuteCommandNonQuery();
+                             bd.Disconnect();
+                         }
+                         catch (Exception ex)
+                         {
+
+                             Console.WriteLine(ex.Message);
+                         }
+
+                     }
+                 
+                 } 
+                 
+                 
+             }
+          
+             //string l;          
+             if (File.Exists(ruta))
+             {
+                 l = File.ReadAllText(ruta);
+             }
+             else
+             {
+                 throw new FileNotFoundException("Error : Please Configure route");
+             }
+
+
+
+             if ((error && _logError) || (warning && _logWarning) || (message1 && _logMessage))
+             {
+                 l = Date() + " - [" + alert + "] : " + message;
+
+                 File.WriteAllText(ruta, l);
+
+             }
+             else {
+
+                 throw new InvalidOperationException("Specified error, warning or message");
+             }
+
+             switch (alert)
+             { 
+                 case "info":
+                     Console.ForegroundColor = ConsoleColor.White;
+                     break;
+                 case "warning":
+                     Console.ForegroundColor = ConsoleColor.Yellow;
+                     break;
+                 case "error":
+                     Console.ForegroundColor = ConsoleColor.Red;
+                     break;
+             }
+
+             Console.WriteLine(DateShort() + message);
+         }
+
+
+         private static string DateShort(){ 
+            return DateTime.Now.ToShortDateString(); 
+        } 
+        
+         public void CleanMessage(string mensaje) 
+         {
+             mensaje.Trim();         
+         }
+
+         private static string Date() 
+         {
+             return DateTime.Now.ToString("ddMMyyyy");
+         }
+
+         public int Info(string type)
+         {
+             
+             if (type.Equals("info"))
+             {
+                 return  1;
+             }
+             else if (type.Equals("warning"))
+             {
+                 return  2;
+             }
+             else if (type.Equals("error"))
+             {
+                 return  3;
+             }
+
+             return 0;
+         } 
+
+    }
+}
